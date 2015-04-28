@@ -2,15 +2,103 @@
 title: "Injury data"
 author: Ian Bradbury
 date: April 27 2015
-output: ioslides_presentation
+output: word_document
 ---
 
 
 
 ## Get data 
+The data are located in the master branch of the GitHub repository for this project, as a CSV file extracted from the original SPSS database. 
 
 ```{r getdata}
-
-injury <- read.csv('P:/injury.csv')
+URLAddress <- "https://raw.githubusercontent.com/IanBrad/EricInjury/master/injury.csv"
+library(repmis)
+injury <- repmis::source_data(URLAddress)
 names(injury)
+# Restrict to subset of interest
+
+injury.dmat <- injury[,c(1,4,7,9:16,19,20,23,25:30,34,38)]
 ```
+
+## Missing data
+
+There are many missing values in the data, so start by examining the patterns
+```{r missing, message=FALSE, warning=FALSE, echo=FALSE}
+
+library(rms)
+na.patterns <- naclus(injury.dmat)
+naplot(na.patterns)
+plot(na.patterns)
+```
+
+## Distribution of Nontraumatic Injury by variable
+
+```{r descrip, fig.height=14, fig.width=7}
+
+describe(injury.dmat)
+dd <- datadist(injury.dmat)
+options (datadist='dd')
+attach(injury.dmat)
+s <- summary(NonTraumLQ13 ~ .,data=injury.dmat)
+
+
+print(s)
+plot(s)
+
+
+```
+
+My impression from this is that most of the interest is in the lunges and aslr, plus maybe Fsquat and hip abductor, so maybe worth just 'expanding' that section of the data---maybe time to fork?
+
+Sticking with this dataset for now, try simpleish model using some interesting variables, then with missing data imputed. We'll try just downdog, aslr, hipabd and Flunge
+
+
+```{r model1, fig.height=14, fig.width=7}
+
+inj.m1 <- lrm(NonTraumLQ13 ~ age + (downdog) + rcs(Flungecontl,3) +  rcs(latlungcontl,3) + 
+                rcs(hamstringcont) +as.factor(slsquatr) +
+                aslrr ,data=injury.dmat[injury.dmat$slsquatr > 0,])
+summary(inj.m1)
+anova(inj.m1)
+```
+
+
+## Missing data imputation
+Multiple conditional mean imputation with n=5, For impute methodsa to work 'properly', make factors first from all categorical variables in injury.dmat. Use Gelman's MI package to do the imputat
+
+'''{r miss1}
+injury.dmat$downdog <- as.factor(injury.dmat$downdog)
+injury.dmat$slsquatr <- as.factor(injury.dmat$slsquatr) 
+injury.dmat$slsquatL <- as.factor(injury.dmat$slsquatL) 
+injury.dmat$aslrr <- as.factor(injury.dmat$aslrr)
+injury.dmat$aslrl <- as.factor(injury.dmat$aslrl)
+injury.dmat$Fsquat <- as.factor(injury.dmat$Fsquat)
+
+injury.dmat$NonTraumLQ13 <- as.factor(injury.dmat$NonTraumLQ13)
+
+library(mi)
+inj.mi.inf <- missing_data.frame(injury.dmat)
+
+inj.mi.imp <- mi(inj.mi.inf)
+
+inj.mi.pool <- pool (NonTraumLQ13 ~ age + (downdog) + bs(Flungecontl,3) +  bs(latlungcontl,3) + bs(latlungcontr,3) + bs(Fllungecontr,3) +
+                bs(hamstringcont) + (slsquatr) + bs(hipabdcontr,3) + bs(hipabdcontl,3) +                            bs(hipaddcontr,3)+ bs(hipaddcontr,3) + aslrl + Fsquat + bs(triplehopl,3) + bs(triplehopr,3) +
+                (aslrr), data=inj.mi.imp, family='binomial')
+                
+inj.mi.pool.1 <-  pool (NonTraumLQ13 ~ age + (downdog) + bs(Flungecontl,3) +   bs(latlungcontr,3) + 
+                bs(hamstringcont) + (slsquatr) + bs(hipabdcontr,3) +                            bs(hipaddcontr,3) + Fsquat + bs(triplehopr,3) +
+                (aslrr), data=inj.mi.imp, family='binomial')
+                
+inj.mi.pool.2 <-  pool (NonTraumLQ13 ~ age + (downdog) + bs(Flungecontl,3) +  
+                   bs(hipaddcontr,3) +
+                (aslrr), data=inj.mi.imp, family='binomial')
+                
+```
+Now multiple regression with the imputed data. 
+
+```{r model1imp, fig.height=14, fig.width=7}
+
+inj.m1.miss <- fit.mult.impute(NonTraumLQ13 ~ age + as.factor(downdog) + rcs(Flungecontl,3) +  rcs(latlungcontl,3) + 
+                rcs(hamstringcont) +as.factor(slsquatr) +
+                as.factor(aslrr),lrm, xtr,data=injury.dmat)
+
