@@ -64,7 +64,7 @@ anova(inj.m1)
 
 
 ## Missing data imputation
-Multiple conditional mean imputation with n=5, For impute methodsa to work 'properly', make factors first from all categorical variables in injury.dmat. Use Gelman's MI package to do the imputat
+Multiple conditional mean imputation with n=5, For impute methods to work 'properly', make factors first from all categorical variables in injury.dmat. Use Gelman's MI package to do the imputation
 
 '''{r miss1}
 injury.dmat$downdog <- as.factor(injury.dmat$downdog)
@@ -75,6 +75,7 @@ injury.dmat$aslrl <- as.factor(injury.dmat$aslrl)
 injury.dmat$Fsquat <- as.factor(injury.dmat$Fsquat)
 
 injury.dmat$NonTraumLQ13 <- as.factor(injury.dmat$NonTraumLQ13)
+injury.dmat$LQInjYorN <- as.factor(injury.dmat$LQInjYorN )
 
 library(mi)
 inj.mi.inf <- missing_data.frame(injury.dmat)
@@ -90,8 +91,12 @@ inj.mi.pool.1 <-  pool (NonTraumLQ13 ~ age + (downdog) + bs(Flungecontl,3) +   b
                 (aslrr), data=inj.mi.imp, family='binomial')
                 
 inj.mi.pool.2 <-  pool (NonTraumLQ13 ~ age + (downdog) + bs(Flungecontl,3) +  
-                   bs(hipaddcontr,3) +
+                   bs(hipaddcontr,3) +  slsquatr +
                 (aslrr), data=inj.mi.imp, family='binomial')
+                
+summary(inj.mi.pool.2)
+
+
                 
 ```
 Now multiple regression with the imputed data. 
@@ -101,4 +106,48 @@ Now multiple regression with the imputed data.
 inj.m1.miss <- fit.mult.impute(NonTraumLQ13 ~ age + as.factor(downdog) + rcs(Flungecontl,3) +  rcs(latlungcontl,3) + 
                 rcs(hamstringcont) +as.factor(slsquatr) +
                 as.factor(aslrr),lrm, xtr,data=injury.dmat)
+summary(inj.m1.miss )
+anova(inj.m1.miss)
 
+injLQ.m1.miss <- fit.mult.impute(LQInjYorN ~ age + as.factor(downdog) + rcs(Flungecontl,3) +  rcs(latlungcontl,3) + 
+                rcs(hamstringcont) +as.factor(slsquatr) +
+                as.factor(aslrr),lrm, xtr,data=injury.dmat)
+summary(injLQ.m1.miss )
+anova(injLQ.m1.miss)
+```
+
+
+Do the MI analysis with any LQ Injury as the outcome
+'''{r missLQinj}
+injury.dmat$downdog <- as.factor(injury.dmat$downdog)
+injury.dmat$slsquatr <- as.factor(injury.dmat$slsquatr) 
+injury.dmat$slsquatL <- as.factor(injury.dmat$slsquatL) 
+injury.dmat$aslrr <- as.factor(injury.dmat$aslrr)
+injury.dmat$aslrl <- as.factor(injury.dmat$aslrl)
+injury.dmat$Fsquat <- as.factor(injury.dmat$Fsquat)
+
+injury.dmat$NonTraumLQ13 <- as.factor(injury.dmat$NonTraumLQ13)
+injury.dmat$LQInjYorN <- as.factor(injury.dmat$LQInjYorN )
+
+library(mi)
+inj.mi.inf <- missing_data.frame(injury.dmat)
+
+inj.mi.imp <- mi(inj.mi.inf)
+
+inj.mi.pool <- pool (LQInjYorN ~ age + (downdog) + bs(Flungecontl,3) +  bs(latlungcontl,3) + bs(latlungcontr,3) + bs(Fllungecontr,3) +
+                bs(hamstringcont) + (slsquatr) + bs(hipabdcontr,3) + bs(hipabdcontl,3) +                            bs(hipaddcontr,3)+ bs(hipaddcontr,3) + aslrl + Fsquat + bs(triplehopl,3) + bs(triplehopr,3) +
+                (aslrr), data=inj.mi.imp, family='binomial')
+                
+inj.mi.pool.1 <-  pool (LQInjYorN ~ age + (downdog) + bs(Flungecontl,3) +   bs(latlungcontr,3) + 
+                bs(hamstringcont) + (slsquatr) + bs(hipabdcontr,3) +                            bs(hipaddcontr,3) + Fsquat + bs(triplehopr,3) +
+                (aslrr), data=inj.mi.imp, family='binomial')
+                
+inj.mi.pool.2 <-  pool (LQInjYorN ~ age + (downdog) + bs(Flungecontl,3) +  
+                   bs(hipaddcontr,3) +  slsquatr +
+                (aslrr), data=inj.mi.imp, family='binomial')
+                
+summary(inj.mi.pool.2)
+
+
+                
+```
